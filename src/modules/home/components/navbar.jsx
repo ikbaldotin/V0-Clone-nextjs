@@ -30,7 +30,7 @@ export const Navbar = () => {
             className="shrink-0 invert dark:invert-0"
           />
         </Link>
-        <div class="max-w-5xl mx-auto w-full flex flex-row-reverse justify-between items-center">
+        <div className="max-w-5xl mx-auto w-full flex flex-row-reverse justify-between items-center">
           <UserButton />
         </div>
         <SignedOut>

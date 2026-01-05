@@ -4,6 +4,8 @@ import Sandbox from "@e2b/code-interpreter"
 import z from "zod";
 import { PROMPT } from "../../prompt";
 import { lastAssistantTextMessageContent } from "./utils";
+import db from "@/lib/db";
+import { MessageRole, MessageType } from "@prisma/client";
 export const codeAgentFunction = inngest.createFunction(
     { id: "code-agent" },
     { event: "code-agent/run" },
@@ -78,7 +80,7 @@ export const codeAgentFunction = inngest.createFunction(
                     name: "readFiles",
                     description: "Read files in the sandbox",
                     parameters: z.object({
-                        file: z.array(z.string())
+                        files: z.array(z.string())
                     }),
                     handler: async ({ files }, { step }) => {
                         return await step?.run("readFiles", async () => {
@@ -86,7 +88,7 @@ export const codeAgentFunction = inngest.createFunction(
                                 const sandbox = await Sandbox.connect(sandboxId)
                                 const contents = []
                                 for (const file of files) {
-                                    const content = sandbox.files.read(file)
+                                    const content = await sandbox.files.read(file)
                                     contents.push({ path: file, content })
                                 } return JSON.stringify(contents)
                             } catch (error) {
@@ -100,7 +102,7 @@ export const codeAgentFunction = inngest.createFunction(
                 onResponse: async ({ result, network }) => {
                     const lastAssitantMessageText = lastAssistantTextMessageContent(result)
                     if (lastAssitantMessageText && network) {
-                        if (lastAssitantMessageText.includes("<tast_summary>")) {
+                        if (lastAssitantMessageText.includes("<task_summary>")) {
                             network.state.data.summary = lastAssitantMessageText
                         }
                     } return result
@@ -120,15 +122,43 @@ export const codeAgentFunction = inngest.createFunction(
             }
         })
         const result = await network.run(event.data.value)
-        const isError = !result.state.data.summary || Object.keys(result.state.data.files || {}).length === 0
+
+        const isError = !result.state.data.summary || Object.keys(result.state.data.files || {}).length === 0;
         const sandboxUrl = await step.run("get-sandbox-url", async () => {
             const sandbox = await Sandbox.connect(sandboxId)
             const host = sandbox.getHost(3000)
             return `http://${host}`
         })
+        await step.run("save-result", async () => {
+            if (isError) {
+                return await db.message.create({
+                    data: {
+                        projectId: event.data.projectId,
+                        content: "Something went wrong.Please try again",
+                        role: MessageRole.ASSISTANT,
+                        type: MessageType.ERROR
+                    }
+                })
+            }
+            return await db.message.create({
+                data: {
+                    projectId: event.data.projectId,
+                    content: result.state.data.summary,
+                    role: MessageRole.ASSISTANT,
+                    type: MessageType.RESULT,
+                    fragments: {
+                        create: {
+                            sandboxUrl: sandboxUrl,
+                            title: "Untitled1",
+                            files: result.state.data.files
+                        }
+                    }
+                }
+            })
+        })
         return {
             url: sandboxUrl,
-            title: "Untitled",
+            title: "Untitled2",
             files: result.state.data.files,
             summary: result.state.data.summary
         }

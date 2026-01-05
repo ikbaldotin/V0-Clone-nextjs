@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Form, FormField } from "@/components/ui/form";
 import { Invoke } from "../actions";
+import { useCreateProjects } from "@/modules/projects/hooks/project";
 
 const formSchema = z.object({
   content: z
@@ -74,6 +75,7 @@ const PROJECT_TEMPLATES = [
 const ProjectForm = () => {
   const [isFocused, setIsFocused] = useState(false);
   const router = useRouter();
+  const { mutateAsync, isPending } = useCreateProjects();
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -89,31 +91,25 @@ const ProjectForm = () => {
 
   const onSubmit = async (values) => {
     try {
-      console.log("heloo");
+      const res = await mutateAsync(values.content);
+      router.push(`/project/${res.id}`);
+      toast.success("project created successfully");
       form.reset();
     } catch (error) {
       toast.error(error.message || "Failed to create project");
     }
   };
-  const onInvokeAi = async () => {
-    try {
-      const res = await Invoke();
-      console.log(res);
-      toast.success("Done");
-    } catch (error) {
-      console.log(error);
-    }
-  };
+  const isButtonDisable = isPending || !form.watch("content").trim();
   return (
     <div className="space-y-8">
       {/* Templates Grid */}
-      <Button onClick={onInvokeAi}>onInvoke ai</Button>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {PROJECT_TEMPLATES.map((template, index) => (
           <button
             key={index}
             onClick={() => handleTemplate(template.prompt)}
-            // disabled={isPending}
+            disabled={isPending}
             className="group relative p-4 rounded-xl border bg-card hover:bg-accent/50 transition-all duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md hover:border-primary/30"
           >
             <div className="flex flex-col gap-2">
@@ -182,11 +178,18 @@ const ProjectForm = () => {
               &nbsp; to submit
             </div>
             <Button
-              className={cn("size-8 rounded-full")}
-              //
+              className={cn(
+                "size-8 rounded-full",
+                isButtonDisable && "bg-muted-foreground border"
+              )}
+              disabled={isButtonDisable}
               type="submit"
             >
-              <ArrowUpIcon />
+              {isPending ? (
+                <Loader2Icon className="size-4 animate-spin" />
+              ) : (
+                <ArrowUpIcon className="size-4" />
+              )}
             </Button>
           </div>
         </form>

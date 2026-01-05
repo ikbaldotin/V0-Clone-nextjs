@@ -45,6 +45,7 @@ export const getProjects = async () => {
     return projects
 }
 export const getProjectById = async (projectId) => {
+
     const user = await getCurrentUser()
     if (!user) throw new Error("Unauthorized")
     const project = await db.project.findUnique({

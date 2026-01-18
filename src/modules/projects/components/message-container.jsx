@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from "react";
 import {
-  useCreateMessage,
   prefetchMessage,
   useGetMessages,
 } from "@/modules/messages/hooks/message";

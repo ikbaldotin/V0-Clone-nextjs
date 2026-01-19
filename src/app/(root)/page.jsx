@@ -2,6 +2,7 @@ import ProjectForm from "@/modules/home/components/project-form";
 import ProjectList from "@/modules/home/components/project-list";
 import Image from "next/image";
 import React from "react";
+export const dynamic = "force-dynamic";
 
 const Page = () => {
   return (
